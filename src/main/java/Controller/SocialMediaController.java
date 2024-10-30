@@ -3,17 +3,24 @@ package Controller;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 
+import java.util.List;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import Model.Message;
+import Service.MessageService;
+import Service.AccountService;
+import Model.Account;
+
 /**
  * TODO: You will need to write your own endpoints and handlers for your controller. The endpoints you will need can be
  * found in readme.md as well as the test cases. You should
  * refer to prior mini-project labs and lecture materials for guidance on how a controller may be built.
  */
 public class SocialMediaController {
-    /**
-     * In order for the test cases to work, you will need to write the endpoints in the startAPI() method, as the test
-     * suite must receive a Javalin object from this method.
-     * @return a Javalin app object which defines the behavior of the Javalin controller.
-     */
+    private MessageService messageService = new MessageService();
+    private AccountService accountService = new AccountService();
+    private ObjectMapper objectMapper = new ObjectMapper();
+
     public Javalin startAPI() {
         Javalin app = Javalin.create();
         app.post("messages", this::createMessageHandler);
@@ -72,32 +79,30 @@ public class SocialMediaController {
     private void getMessageById(Context context) {
         String messageIdParam = context.pathParam("messageId");
         int messageId = Integer.parseInt(messageIdParam);
-        Message message = messageService.getMessageById(messageId); // Call service to get the message by its ID
+        Message message = messageService.getMessageById(messageId);
         if (message != null) {
             context.status(200).json(message);
         } else {
-            context.status(200).result(""); // Return empty body if message is not found
+            context.status(200).result(""); 
         }
     }
 
     // Handler for updating a message
     private void updateMessageHandler(Context context) {
-        int messageId = Integer.parseInt(context.pathParam("id")); // Get message ID from the path
-        String requestBody = context.body(); // Get the request body
+        int messageId = Integer.parseInt(context.pathParam("id")); 
+        String requestBody = context.body(); 
         try {
-            Message messageUpdate = objectMapper.readValue(requestBody, Message.class); // Deserialize the message update
-
-            // Update message in the service
+            Message messageUpdate = objectMapper.readValue(requestBody, Message.class);
             Message updatedMessage = messageService.updateMessage(messageId, messageUpdate.getMessage_text());
 
             if (updatedMessage != null) {
-                context.status(200).json(updatedMessage); // Return the updated message with status 200
+                context.status(200).json(updatedMessage); 
             } else {
-                context.status(400); // Invalid message text or update failed
+                context.status(400); 
             }
 
         } catch (Exception e) {
-            context.status(400); // Handle parsing errors or invalid input
+            context.status(400); 
         }
 
     }
@@ -108,14 +113,30 @@ public class SocialMediaController {
         Account newAccount = objectMapper.readValue(context.body(), Account.class);
         Account createdAccount = accountService.registerAccount(newAccount);
         
+        if (createdAccount != null) {
+            context.status(200).json(createdAccount); 
+        } else {
+            context.status(400).result(""); 
+        }
+    } catch (Exception e) {
+        context.status(400).result("Invalid request body");
     }
+}
 
-    /**
-     * This is an example handler for an example endpoint.
-     * @param context The Javalin Context object manages information about both the HTTP request and response.
-     */
-    private void exampleHandler(Context context) {
-        context.json("sample text");
+
+    // New handler for user login
+    private void loginHandler(Context context) {
+        try {
+            Account loginDetails = objectMapper.readValue(context.body(), Account.class);
+            Account account = accountService.validateLogin(loginDetails.getUsername(), loginDetails.getPassword());
+            if (account != null) {
+                context.status(200).json(account);
+            } else {
+                context.status(401).result(""); 
+            }
+        } catch (Exception e) {
+            context.status(400).result("Invalid request body");
+        }
     }
 
 
